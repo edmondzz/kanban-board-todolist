@@ -85,29 +85,29 @@ const CustomCard = ({
       return;
     }
 
-    const existingCard = textFields.find((field) => {
-      return field.value === currentValue && field.section === section;
-    });
+    const existingCard = textFields.find(
+      (field) => field.value === currentValue && field.section === section
+    );
 
     if (existingCard) {
-      const updatedFields = textFields.map((field) => {
-        if (field.key === existingCard.key) {
-          return { ...field, value: currentValue };
-        } else {
-          return field;
-        }
-      });
+      if (existingCard.value !== currentValue) {
+        const updatedFields = textFields.map((field) => {
+          if (field.key === existingCard.key) {
+            return { ...field, value: currentValue };
+          } else {
+            return field;
+          }
+        });
 
-      setTextFields(updatedFields);
+        setTextFields(updatedFields);
+      }
     } else {
       const newCard = { key: cardId, value: currentValue, section: section };
       const newFields = [...textFields, newCard];
       setTextFields(newFields);
       setCardId(cardId + 1);
     }
-
     setCurrentValue("");
-    setShowAddCard(false);
   };
 
   const handleEditCardClick = (item) => {
