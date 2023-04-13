@@ -5,25 +5,31 @@ import {
   Typography,
   TextField,
   Button,
-  Grid,
   Card,
+  Grid,
   CardContent,
   Collapse,
 } from "@material-ui/core";
 import EditIcon from "@material-ui/icons/Edit";
 import AddCircleIcon from "@material-ui/icons/AddCircle";
 import DeleteIcon from "@material-ui/icons/Delete";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  setTextFields,
+  setDraggedItem,
+  setCardId,
+  setTargetId,
+} from "./createSlice";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     flexGrow: 1,
     padding: theme.spacing(2),
-    backgroundColor: "#2196f3",
   },
   card: {
     padding: theme.spacing(1),
     marginTop: theme.spacing(2),
-    backgroundColor: "#f5f4f4",
+    marginBottom: theme.spacing(2),
   },
   button: {
     margin: theme.spacing(1),
@@ -34,20 +40,15 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const CustomCard = ({
-  cardId,
-  targetId,
-  textFields,
-  draggedItem,
-  setTextFields,
-  setDraggedItem,
-  setCardId,
-  setTargetId,
-  sectionName,
-}) => {
+const CustomCard = ({ sectionName }) => {
   const classes = useStyles();
   const [currentValue, setCurrentValue] = useState("");
   const [showAddCard, setShowAddCard] = useState(false);
+  const dispatch = useDispatch();
+
+  const { textFields, draggedItem, cardId, targetId } = useSelector(
+    (state) => state.kanban
+  );
 
   const handleChange = (event) => {
     setCurrentValue(event.target.value);
@@ -55,12 +56,12 @@ const CustomCard = ({
 
   const onDrag = (event, draggedItem) => {
     event.preventDefault();
-    setDraggedItem(draggedItem);
+    dispatch(setDraggedItem(draggedItem));
   };
 
   const onDragOver = (event, section) => {
     event.preventDefault();
-    setTargetId(section);
+    dispatch(setTargetId(section));
   };
 
   const onDrop = () => {
@@ -68,23 +69,25 @@ const CustomCard = ({
       (item) => item.key !== draggedItem.key
     );
 
-    setTextFields([
-      ...newTextFields,
-      {
-        key: draggedItem.key,
-        value: draggedItem.value,
-        section: targetId,
-      },
-    ]);
+    dispatch(
+      setTextFields([
+        ...newTextFields,
+        {
+          key: draggedItem.key,
+          value: draggedItem.value,
+          section: targetId, // targetId is the section name
+        },
+      ])
+    );
 
-    setDraggedItem();
+    dispatch(setDraggedItem());
   };
 
   const saveCard = (section) => {
     if (currentValue.trim() === "") {
       return;
     }
-
+    setShowAddCard(false);
     const existingCard = textFields.find(
       (field) => field.value === currentValue && field.section === section
     );
@@ -98,27 +101,26 @@ const CustomCard = ({
             return field;
           }
         });
-
-        setTextFields(updatedFields);
+        
+        dispatch(setTextFields(updatedFields));
       }
     } else {
       const newCard = { key: cardId, value: currentValue, section: section };
       const newFields = [...textFields, newCard];
-      setTextFields(newFields);
-      setCardId(cardId + 1);
+      dispatch(setTextFields(newFields));
+      dispatch(setCardId(cardId + 1));
     }
     setCurrentValue("");
+  };
+  const handleDeleteCardClick = (item) => {
+    const newFields = textFields.filter((field) => field.key !== item.key);
+    dispatch(setTextFields(newFields));
   };
 
   const handleEditCardClick = (item) => {
     setCurrentValue(item.value);
     setShowAddCard(true);
     handleDeleteCardClick(item);
-  };
-
-  const handleDeleteCardClick = (item) => {
-    const newFields = textFields.filter((field) => field.key !== item.key);
-    setTextFields(newFields);
   };
 
   return (
@@ -128,78 +130,66 @@ const CustomCard = ({
         onDrop={() => onDrop()}
         onDragOver={(event) => onDragOver(event, sectionName)}
       >
-        <div>
-          <Typography
-            className={classes.textField}
-            style={{ display: "flex", justifyContent: "start" }}
-            variant="h5"
-            component="h2"
-            gutterBottom
-          >
-            {sectionName}
-          </Typography>
-          <div>
-            {textFields
-              .filter((field) => field.section === sectionName)
-              .map((field) => (
-                <>
-                  <Card
-                    className={classes.card}
-                    draggable
-                    onDrag={(event) => onDrag(event, field)}
-                  >
-                    <CardContent
-                      className={classes.textField}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        maxHeight: "none",
-                        overflow: "auto",
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>{field.value}</div>
-                      <div>
-                        <EditIcon onClick={() => handleEditCardClick(field)} />
-                        <DeleteIcon
-                          onClick={() => handleDeleteCardClick(field)}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              ))}
-          </div>
-        </div>
+        <Typography
+          style={{ display: "flex", justifyContent: "start" }}
+          variant="h5"
+          gutterBottom
+        >
+          {sectionName}
+        </Typography>
+        {textFields
+          .filter((field) => field.section === sectionName)
+          .map((field) => (
+            <Card
+            className={classes.card}
+              key={field.key}
+              draggable
+              onDrag={(event) => onDrag(event, field)}
+              onDragOver={(event) => onDragOver(event)}
+              onDrop={onDrop}
+            >
+              <CardContent
+                className={classes.textField}
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  overflow: 'auto'
+                }}
+              >
+                <div style={{ flex: 1 }}>{field.value}</div>
+                <EditIcon onClick={() => handleEditCardClick(field)} />
+                <DeleteIcon onClick={() => handleDeleteCardClick(field)} />
+              </CardContent>
+            </Card>
+          ))}
         <Collapse in={showAddCard}>
           <TextField
             className={classes.textField}
             variant="outlined"
-            margin="normal"
+            margin="dense"
             fullWidth
-            label="Task name"
-            autoFocus
+            placeholder="Add a card"
             value={currentValue}
             onChange={handleChange}
           />
           <Button
             variant="none"
-            className={classes.button}
             startIcon={<AddCircleIcon />}
             onClick={() => saveCard(sectionName)}
           >
-            Add Task
+            {`Add Task`}
           </Button>
         </Collapse>
-        <Button
-          variant="outlined"
-          className={classes.button}
-          onClick={() => setShowAddCard(!showAddCard)}
-        >
-          Add Card
-        </Button>
+          <Button
+            className={classes.button}
+            variant="outlined"
+            onClick={() => setShowAddCard(true)}
+          >
+            {`Add card`}
+          </Button>
       </Paper>
     </Grid>
   );
 };
-
 export default CustomCard;
